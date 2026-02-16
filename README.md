@@ -107,4 +107,3 @@ When adding new views:
 - Keep copy direct and operational; avoid hype or marketing language in product UI.
 
 No product‑specific features have been implemented yet; `index.html` serves as a reference implementation of the layout and component language for future steps.
-
