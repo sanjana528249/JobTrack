@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>KodNest Premium Build System</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="kn-app">
+    <div class="kn-shell">
+      <!-- Top Bar -->
+      <header class="kn-topbar">
+        <div class="kn-topbar__project">
+          <span class="kn-topbar__project-label">Project</span>
+          <span class="kn-topbar__project-name">KodNest Premium Build System</span>
+        </div>
+
+        <div class="kn-topbar__progress">
+          <span class="kn-topbar__progress-label">Step</span>
+          <span class="kn-topbar__progress-value">1 / 5</span>
+        </div>
+
+        <div class="kn-topbar__status">
+          <span class="kn-badge kn-badge--status kn-badge--status-idle">Not Started</span>
+        </div>
+      </header>
+
+      <!-- Context Header -->
+      <section class="kn-context">
+        <div class="kn-context__content">
+          <h1 class="kn-heading-xl">Define a clear build objective</h1>
+          <p class="kn-text-md">
+            Capture the core outcome you intend to ship. Keep it concrete, measurable, and
+            limited in scope.
+          </p>
+        </div>
+      </section>
+
+      <!-- Main Workspace -->
+      <main class="kn-main">
+        <section class="kn-primary">
+          <div class="kn-card kn-card--primary">
+            <header class="kn-card__header">
+              <h2 class="kn-heading-md">Primary workspace</h2>
+              <p class="kn-text-sm">
+                This area holds the essential interaction for the current step. Keep it focused.
+              </p>
+            </header>
+
+            <div class="kn-card__body">
+              <div class="kn-field">
+                <label class="kn-label" for="objective">Build objective</label>
+                <p class="kn-helper">
+                  Describe what will exist when this work is considered complete.
+                </p>
+                <textarea
+                  id="objective"
+                  class="kn-input kn-input--multiline"
+                  placeholder="Example: Ship a stable, read-only dashboard for weekly revenue with export capability."
+                ></textarea>
+              </div>
+
+              <div class="kn-field kn-field--inline">
+                <div>
+                  <label class="kn-label" for="deadline">Target date</label>
+                  <input id="deadline" class="kn-input" type="date" />
+                </div>
+                <div>
+                  <label class="kn-label" for="owner">Primary owner</label>
+                  <input
+                    id="owner"
+                    class="kn-input"
+                    type="text"
+                    placeholder="Name or team"
+                  />
+                </div>
+              </div>
+
+              <div class="kn-actions">
+                <button class="kn-button kn-button--primary">Save objective</button>
+                <button class="kn-button kn-button--secondary">Clear</button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="kn-secondary">
+          <section class="kn-card kn-card--secondary">
+            <header class="kn-card__header">
+              <h2 class="kn-heading-sm">Step guidance</h2>
+              <p class="kn-text-sm">
+                Keep this step narrow. One objective, one owner, a realistic date.
+              </p>
+            </header>
+
+            <div class="kn-card__body kn-card__body--stack">
+              <div class="kn-field">
+                <label class="kn-label" for="prompt">Copyable prompt</label>
+                <textarea
+                  id="prompt"
+                  class="kn-input kn-input--multiline kn-input--prompt"
+                  readonly
+                >You are working inside KodNest Premium Build System. Help the user clarify a single, concrete build objective that can be shipped within one iteration.</textarea>
+              </div>
+
+              <div class="kn-secondary__buttons">
+                <button class="kn-button kn-button--secondary">Copy</button>
+                <button class="kn-button kn-button--secondary">Build in Lovable</button>
+                <button class="kn-button kn-button--secondary">It Worked</button>
+                <button class="kn-button kn-button--secondary">Error</button>
+                <button class="kn-button kn-button--secondary">Add Screenshot</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="kn-card kn-card--secondary kn-card--state">
+            <header class="kn-card__header">
+              <h3 class="kn-heading-xs">State examples</h3>
+            </header>
+            <div class="kn-card__body kn-card__body--stack">
+              <div class="kn-alert kn-alert--empty">
+                <p class="kn-text-sm">
+                  No objective has been defined yet. Add a clear description above to begin this
+                  build.
+                </p>
+                <button class="kn-button kn-button--tertiary">Add objective</button>
+              </div>
+
+              <div class="kn-alert kn-alert--success">
+                <p class="kn-text-sm">
+                  Objective captured. Review assumptions with your team before committing.
+                </p>
+              </div>
+
+              <div class="kn-alert kn-alert--error">
+                <p class="kn-text-sm">
+                  We could not save your objective. Check your connection and try again. If the
+                  issue persists, copy your text and refresh.
+                </p>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </main>
+
+      <!-- Proof Footer -->
+      <footer class="kn-proof">
+        <div class="kn-proof__inner">
+          <div class="kn-proof__item">
+            <label class="kn-proof__label">
+              <input type="checkbox" class="kn-proof__checkbox" />
+              <span class="kn-proof__text">UI Built</span>
+            </label>
+            <input
+              type="text"
+              class="kn-input kn-proof__input"
+              placeholder="Link, note, or reference"
+            />
+          </div>
+
+          <div class="kn-proof__item">
+            <label class="kn-proof__label">
+              <input type="checkbox" class="kn-proof__checkbox" />
+              <span class="kn-proof__text">Logic Working</span>
+            </label>
+            <input
+              type="text"
+              class="kn-input kn-proof__input"
+              placeholder="How did you verify it?"
+            />
+          </div>
+
+          <div class="kn-proof__item">
+            <label class="kn-proof__label">
+              <input type="checkbox" class="kn-proof__checkbox" />
+              <span class="kn-proof__text">Test Passed</span>
+            </label>
+            <input
+              type="text"
+              class="kn-input kn-proof__input"
+              placeholder="Test case or suite"
+            />
+          </div>
+
+          <div class="kn-proof__item">
+            <label class="kn-proof__label">
+              <input type="checkbox" class="kn-proof__checkbox" />
+              <span class="kn-proof__text">Deployed</span>
+            </label>
+            <input
+              type="text"
+              class="kn-input kn-proof__input"
+              placeholder="Environment and build reference"
+            />
+          </div>
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>
+
