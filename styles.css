@@ -80,13 +80,20 @@ body.kn-app {
 
 .kn-topbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: var(--kn-space-2);
   padding: var(--kn-shell-padding-y) var(--kn-shell-padding-x);
   max-width: var(--kn-shell-max-width);
   width: 100%;
   margin-inline: auto;
   border-bottom: var(--kn-border-subtle);
+}
+
+.kn-topbar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--kn-space-3);
 }
 
 .kn-topbar__project {
@@ -130,6 +137,54 @@ body.kn-app {
   display: flex;
   justify-content: flex-end;
   min-width: 150px;
+}
+
+.kn-topbar__nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--kn-space-2);
+}
+
+/* Primary navigation */
+
+.kn-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--kn-space-3);
+  font-size: 14px;
+}
+
+.kn-nav__link {
+  text-decoration: none;
+  color: inherit;
+  padding-bottom: 4px;
+  border-bottom: 2px solid transparent;
+  transition: border-color var(--kn-transition-fast), color var(--kn-transition-fast);
+}
+
+.kn-nav__link:hover {
+  border-bottom-color: rgba(139, 0, 0, 0.4);
+}
+
+.kn-nav__link--active {
+  border-bottom-color: var(--kn-color-accent);
+  font-weight: 500;
+}
+
+.kn-nav__toggle {
+  display: none;
+  border: 1px solid rgba(17, 17, 17, 0.24);
+  background-color: rgba(247, 246, 243, 0.8);
+  border-radius: var(--kn-radius-sm);
+  padding: 6px 10px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.kn-nav__toggle:focus-visible {
+  outline: 2px solid var(--kn-color-accent);
+  outline-offset: 1px;
 }
 
 /* Badges */
@@ -499,7 +554,7 @@ body.kn-app {
 }
 
 @media (max-width: 720px) {
-  .kn-topbar {
+  .kn-topbar__row {
     flex-direction: column;
     align-items: flex-start;
     gap: var(--kn-space-2);
@@ -509,6 +564,27 @@ body.kn-app {
   .kn-topbar__status {
     align-items: flex-start;
     min-width: auto;
+  }
+
+  .kn-topbar__nav-row {
+    justify-content: space-between;
+  }
+
+  .kn-nav__toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .kn-nav {
+    display: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--kn-space-1);
+  }
+
+  .kn-nav.kn-nav--open {
+    display: flex;
   }
 
   .kn-field--inline {
