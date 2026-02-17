@@ -14,16 +14,131 @@ document.addEventListener("DOMContentLoaded", function () {
     mode: "",
     experience: "",
     source: "",
-    sort: "latest"
+    sort: "latest",
+    showOnlyMatches: false
   };
 
-  // Get saved jobs from localStorage
+  // ============================================
+  // PREFERENCES MANAGEMENT
+  // ============================================
+
+  // Get preferences from localStorage
+  function getPreferences() {
+    const prefs = localStorage.getItem("jobTrackerPreferences");
+    return prefs ? JSON.parse(prefs) : null;
+  }
+
+  // Save preferences to localStorage
+  function savePreferences(prefs) {
+    localStorage.setItem("jobTrackerPreferences", JSON.stringify(prefs));
+  }
+
+  // Default preferences structure
+  function getDefaultPreferences() {
+    return {
+      roleKeywords: "",
+      preferredLocations: [],
+      preferredMode: [],
+      experienceLevel: "",
+      skills: "",
+      minMatchScore: 40
+    };
+  }
+
+  // ============================================
+  // MATCH SCORE ENGINE
+  // ============================================
+
+  function calculateMatchScore(job, preferences) {
+    if (!preferences) return 0;
+
+    let score = 0;
+
+    // +25 if any roleKeyword appears in job.title (case-insensitive)
+    if (preferences.roleKeywords) {
+      const keywords = preferences.roleKeywords.split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+      const jobTitleLower = job.title.toLowerCase();
+      if (keywords.some(keyword => jobTitleLower.includes(keyword))) {
+        score += 25;
+      }
+    }
+
+    // +15 if any roleKeyword appears in job.description
+    if (preferences.roleKeywords) {
+      const keywords = preferences.roleKeywords.split(',').map(k => k.trim().toLowerCase()).filter(k => k);
+      const jobDescLower = job.description.toLowerCase();
+      if (keywords.some(keyword => jobDescLower.includes(keyword))) {
+        score += 15;
+      }
+    }
+
+    // +15 if job.location matches preferredLocations
+    if (preferences.preferredLocations && preferences.preferredLocations.length > 0) {
+      if (preferences.preferredLocations.includes(job.location)) {
+        score += 15;
+      }
+    }
+
+    // +10 if job.mode matches preferredMode
+    if (preferences.preferredMode && preferences.preferredMode.length > 0) {
+      if (preferences.preferredMode.includes(job.mode)) {
+        score += 10;
+      }
+    }
+
+    // +10 if job.experience matches experienceLevel
+    if (preferences.experienceLevel) {
+      const expMap = {
+        "Fresher": ["Fresher"],
+        "0-1": ["0-1"],
+        "1-3": ["1-3"],
+        "3-5": ["3-5"]
+      };
+      if (expMap[preferences.experienceLevel] && expMap[preferences.experienceLevel].includes(job.experience)) {
+        score += 10;
+      }
+    }
+
+    // +15 if overlap between job.skills and user.skills (any match)
+    if (preferences.skills) {
+      const userSkills = preferences.skills.split(',').map(s => s.trim().toLowerCase()).filter(s => s);
+      const jobSkills = job.skills.map(s => s.toLowerCase());
+      if (userSkills.some(skill => jobSkills.some(js => js.includes(skill) || skill.includes(js)))) {
+        score += 15;
+      }
+    }
+
+    // +5 if postedDaysAgo <= 2
+    if (job.postedDaysAgo <= 2) {
+      score += 5;
+    }
+
+    // +5 if source is LinkedIn
+    if (job.source === "LinkedIn") {
+      score += 5;
+    }
+
+    // Cap score at 100
+    return Math.min(score, 100);
+  }
+
+  // Get match score badge class
+  function getMatchScoreClass(score) {
+    if (score >= 80) return "kn-match-score--high";
+    if (score >= 60) return "kn-match-score--medium";
+    if (score >= 40) return "kn-match-score--low";
+    return "kn-match-score--minimal";
+  }
+
+  // ============================================
+  // SAVED JOBS MANAGEMENT
+  // ============================================
+
   function getSavedJobs() {
     const saved = localStorage.getItem("savedJobs");
     return saved ? JSON.parse(saved) : [];
   }
 
-  // Save job to localStorage
   function saveJob(jobId) {
     const saved = getSavedJobs();
     if (!saved.includes(jobId)) {
@@ -32,19 +147,20 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Remove job from localStorage
   function removeSavedJob(jobId) {
     const saved = getSavedJobs();
     const filtered = saved.filter(id => id !== jobId);
     localStorage.setItem("savedJobs", JSON.stringify(filtered));
   }
 
-  // Check if job is saved
   function isJobSaved(jobId) {
     return getSavedJobs().includes(jobId);
   }
 
-  // Get unique values for filter dropdowns
+  // ============================================
+  // UTILITY FUNCTIONS
+  // ============================================
+
   function getUniqueLocations() {
     return [...new Set(JOBS_DATA.map(job => job.location))].sort();
   }
@@ -53,11 +169,33 @@ document.addEventListener("DOMContentLoaded", function () {
     return [...new Set(JOBS_DATA.map(job => job.source))].sort();
   }
 
-  // Filter and sort jobs
+  function formatPostedDays(days) {
+    if (days === 0) return "Today";
+    if (days === 1) return "1 day ago";
+    return `${days} days ago`;
+  }
+
+  // Extract numeric value from salary range for sorting
+  function extractSalaryValue(salaryRange) {
+    const match = salaryRange.match(/(\d+)/);
+    return match ? parseInt(match[1]) : 0;
+  }
+
+  // ============================================
+  // FILTER AND SORT LOGIC
+  // ============================================
+
   function getFilteredJobs() {
+    const preferences = getPreferences();
     let filtered = [...JOBS_DATA];
 
-    // Keyword filter
+    // Calculate match scores for all jobs
+    filtered = filtered.map(job => ({
+      ...job,
+      matchScore: calculateMatchScore(job, preferences)
+    }));
+
+    // Keyword filter (AND behavior)
     if (filters.keyword) {
       const keyword = filters.keyword.toLowerCase();
       filtered = filtered.filter(job =>
@@ -66,24 +204,29 @@ document.addEventListener("DOMContentLoaded", function () {
       );
     }
 
-    // Location filter
+    // Location filter (AND behavior)
     if (filters.location) {
       filtered = filtered.filter(job => job.location === filters.location);
     }
 
-    // Mode filter
+    // Mode filter (AND behavior)
     if (filters.mode) {
       filtered = filtered.filter(job => job.mode.toLowerCase() === filters.mode.toLowerCase());
     }
 
-    // Experience filter
+    // Experience filter (AND behavior)
     if (filters.experience) {
       filtered = filtered.filter(job => job.experience === filters.experience);
     }
 
-    // Source filter
+    // Source filter (AND behavior)
     if (filters.source) {
       filtered = filtered.filter(job => job.source === filters.source);
+    }
+
+    // Show only matches filter
+    if (filters.showOnlyMatches && preferences) {
+      filtered = filtered.filter(job => job.matchScore >= preferences.minMatchScore);
     }
 
     // Sort
@@ -91,27 +234,35 @@ document.addEventListener("DOMContentLoaded", function () {
       filtered.sort((a, b) => a.postedDaysAgo - b.postedDaysAgo);
     } else if (filters.sort === "oldest") {
       filtered.sort((a, b) => b.postedDaysAgo - a.postedDaysAgo);
+    } else if (filters.sort === "match") {
+      filtered.sort((a, b) => b.matchScore - a.matchScore);
+    } else if (filters.sort === "salary") {
+      filtered.sort((a, b) => extractSalaryValue(b.salaryRange) - extractSalaryValue(a.salaryRange));
     }
 
     return filtered;
   }
 
-  // Format posted days ago
-  function formatPostedDays(days) {
-    if (days === 0) return "Today";
-    if (days === 1) return "1 day ago";
-    return `${days} days ago`;
-  }
+  // ============================================
+  // RENDERING FUNCTIONS
+  // ============================================
 
-  // Render job card
   function renderJobCard(job, showSaveButton = true) {
     const saved = isJobSaved(job.id);
+    const matchScore = job.matchScore || 0;
+    const matchScoreClass = getMatchScoreClass(matchScore);
+    const preferences = getPreferences();
+    const showMatchScore = preferences !== null;
+
     return `
       <div class="kn-job-card" data-job-id="${job.id}">
         <div class="kn-job-card__header">
           <div class="kn-job-card__title-row">
             <h3 class="kn-job-card__title">${job.title}</h3>
-            <span class="kn-job-card__source kn-job-card__source--${job.source.toLowerCase()}">${job.source}</span>
+            <div class="kn-job-card__badges">
+              ${showMatchScore ? `<span class="kn-match-score ${matchScoreClass}">${matchScore}%</span>` : ''}
+              <span class="kn-job-card__source kn-job-card__source--${job.source.toLowerCase()}">${job.source}</span>
+            </div>
           </div>
           <p class="kn-job-card__company">${job.company}</p>
         </div>
@@ -147,12 +298,21 @@ document.addEventListener("DOMContentLoaded", function () {
     `;
   }
 
-  // Render filter bar
   function renderFilterBar() {
     const locations = getUniqueLocations();
     const sources = getUniqueSources();
+    const preferences = getPreferences();
+
     return `
       <div class="kn-filters">
+        ${preferences ? '' : `
+          <div class="kn-alert kn-alert--empty kn-alert--info">
+            <p class="kn-text-sm">
+              Set your preferences to activate intelligent matching.
+            </p>
+            <a href="#/settings" class="kn-button kn-button--tertiary">Go to Settings</a>
+          </div>
+        `}
         <div class="kn-filters__row">
           <div class="kn-filters__field">
             <input
@@ -196,24 +356,43 @@ document.addEventListener("DOMContentLoaded", function () {
             <select class="kn-input kn-filters__select" id="filter-sort">
               <option value="latest" ${filters.sort === 'latest' ? 'selected' : ''}>Latest First</option>
               <option value="oldest" ${filters.sort === 'oldest' ? 'selected' : ''}>Oldest First</option>
+              ${preferences ? '<option value="match" ' + (filters.sort === 'match' ? 'selected' : '') + '>Match Score</option>' : ''}
+              <option value="salary" ${filters.sort === 'salary' ? 'selected' : ''}>Salary (High to Low)</option>
             </select>
           </div>
         </div>
+        ${preferences ? `
+          <div class="kn-filters__toggle-row">
+            <label class="kn-checkbox-label">
+              <input type="checkbox" id="filter-show-matches" ${filters.showOnlyMatches ? 'checked' : ''} />
+              <span>Show only jobs above my threshold (${preferences.minMatchScore}%)</span>
+            </label>
+          </div>
+        ` : ''}
       </div>
     `;
   }
 
-  // Render job modal
   function renderJobModal(job) {
     const saved = isJobSaved(job.id);
+    const matchScore = job.matchScore || 0;
+    const matchScoreClass = getMatchScoreClass(matchScore);
+    const preferences = getPreferences();
+    const showMatchScore = preferences !== null;
+
     return `
       <div class="kn-modal" id="job-modal">
         <div class="kn-modal__overlay" data-action="close-modal"></div>
         <div class="kn-modal__content">
           <button class="kn-modal__close" data-action="close-modal" aria-label="Close">×</button>
           <div class="kn-modal__header">
-            <h2 class="kn-heading-md">${job.title}</h2>
-            <p class="kn-modal__company">${job.company}</p>
+            <div class="kn-modal__header-row">
+              <div>
+                <h2 class="kn-heading-md">${job.title}</h2>
+                <p class="kn-modal__company">${job.company}</p>
+              </div>
+              ${showMatchScore ? `<span class="kn-match-score ${matchScoreClass}">${matchScore}% Match</span>` : ''}
+            </div>
           </div>
           <div class="kn-modal__body">
             <div class="kn-modal__meta">
@@ -258,24 +437,27 @@ document.addEventListener("DOMContentLoaded", function () {
     `;
   }
 
-  // Show job modal
   function showJobModal(jobId) {
     const job = JOBS_DATA.find(j => j.id === jobId);
     if (!job) return;
 
-    const modalHTML = renderJobModal(job);
+    const preferences = getPreferences();
+    const jobWithScore = {
+      ...job,
+      matchScore: calculateMatchScore(job, preferences)
+    };
+
+    const modalHTML = renderJobModal(jobWithScore);
     document.body.insertAdjacentHTML('beforeend', modalHTML);
     const modal = document.getElementById('job-modal');
     modal.classList.add('kn-modal--open');
 
-    // Close modal handlers
     document.querySelectorAll('[data-action="close-modal"]').forEach(btn => {
       btn.addEventListener('click', () => {
         modal.remove();
       });
     });
 
-    // Save/unsave handler in modal
     const saveBtn = modal.querySelector('[data-action="save"], [data-action="unsave"]');
     if (saveBtn) {
       saveBtn.addEventListener('click', (e) => {
@@ -286,10 +468,8 @@ document.addEventListener("DOMContentLoaded", function () {
         } else {
           removeSavedJob(jobId);
         }
-        // Re-render modal
         modal.remove();
         showJobModal(jobId);
-        // Re-render dashboard if on dashboard
         if (getPathFromHash() === '/dashboard') {
           renderDashboard();
         }
@@ -297,7 +477,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  // Handle job card actions
   function handleJobAction(action, jobId, jobUrl) {
     if (action === 'view') {
       showJobModal(jobId);
@@ -311,6 +490,10 @@ document.addEventListener("DOMContentLoaded", function () {
       window.open(jobUrl, '_blank');
     }
   }
+
+  // ============================================
+  // PAGE RENDERING FUNCTIONS
+  // ============================================
 
   function getPathFromHash() {
     const hash = window.location.hash || "#/";
@@ -349,12 +532,13 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (contentEl) {
       const filteredJobs = getFilteredJobs();
+
       const jobsHTML = filteredJobs.length > 0
         ? filteredJobs.map(job => renderJobCard(job)).join('')
         : `
           <div class="kn-empty-state">
             <p class="kn-text-md kn-empty-state__text">
-              No jobs found matching your filters. Try adjusting your search criteria.
+              No roles match your criteria. Adjust filters or lower threshold.
             </p>
           </div>
         `;
@@ -383,6 +567,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const experienceSelect = document.getElementById('filter-experience');
       const sourceSelect = document.getElementById('filter-source');
       const sortSelect = document.getElementById('filter-sort');
+      const showMatchesCheckbox = document.getElementById('filter-show-matches');
 
       if (keywordInput) {
         keywordInput.addEventListener('input', (e) => {
@@ -425,6 +610,13 @@ document.addEventListener("DOMContentLoaded", function () {
           renderDashboard();
         });
       }
+
+      if (showMatchesCheckbox) {
+        showMatchesCheckbox.addEventListener('change', (e) => {
+          filters.showOnlyMatches = e.target.checked;
+          renderDashboard();
+        });
+      }
     }
   }
 
@@ -438,6 +630,9 @@ document.addEventListener("DOMContentLoaded", function () {
       `;
     }
     if (contentEl) {
+      const preferences = getPreferences() || getDefaultPreferences();
+      const locations = getUniqueLocations();
+
       contentEl.innerHTML = `
         <div class="kn-card__body">
           <div class="kn-field">
@@ -450,33 +645,40 @@ document.addEventListener("DOMContentLoaded", function () {
               class="kn-input"
               type="text"
               placeholder="e.g., Software Engineer, Product Manager"
+              value="${preferences.roleKeywords}"
             />
           </div>
 
           <div class="kn-field">
             <label class="kn-label" for="preferred-locations">Preferred locations</label>
             <p class="kn-helper">
-              Cities or regions where you'd like to work.
+              Select one or more locations where you'd like to work.
             </p>
-            <input
-              id="preferred-locations"
-              class="kn-input"
-              type="text"
-              placeholder="e.g., San Francisco, Remote, New York"
-            />
+            <select id="preferred-locations" class="kn-input" multiple size="5">
+              ${locations.map(loc => `<option value="${loc}" ${preferences.preferredLocations.includes(loc) ? 'selected' : ''}>${loc}</option>`).join('')}
+            </select>
+            <p class="kn-helper">Hold Ctrl (Windows) or Cmd (Mac) to select multiple locations.</p>
           </div>
 
           <div class="kn-field">
-            <label class="kn-label" for="work-mode">Mode</label>
+            <label class="kn-label">Preferred work mode</label>
             <p class="kn-helper">
-              Select your preferred work arrangement.
+              Select your preferred work arrangements (you can select multiple).
             </p>
-            <select id="work-mode" class="kn-input">
-              <option value="">Select mode</option>
-              <option value="remote">Remote</option>
-              <option value="hybrid">Hybrid</option>
-              <option value="onsite">Onsite</option>
-            </select>
+            <div class="kn-checkbox-group">
+              <label class="kn-checkbox-label">
+                <input type="checkbox" name="preferred-mode" value="Remote" ${preferences.preferredMode.includes('Remote') ? 'checked' : ''} />
+                <span>Remote</span>
+              </label>
+              <label class="kn-checkbox-label">
+                <input type="checkbox" name="preferred-mode" value="Hybrid" ${preferences.preferredMode.includes('Hybrid') ? 'checked' : ''} />
+                <span>Hybrid</span>
+              </label>
+              <label class="kn-checkbox-label">
+                <input type="checkbox" name="preferred-mode" value="Onsite" ${preferences.preferredMode.includes('Onsite') ? 'checked' : ''} />
+                <span>Onsite</span>
+              </label>
+            </div>
           </div>
 
           <div class="kn-field">
@@ -486,19 +688,97 @@ document.addEventListener("DOMContentLoaded", function () {
             </p>
             <select id="experience-level" class="kn-input">
               <option value="">Select level</option>
-              <option value="entry">Entry Level (0-2 years)</option>
-              <option value="mid">Mid Level (3-5 years)</option>
-              <option value="senior">Senior (6-10 years)</option>
-              <option value="lead">Lead/Principal (10+ years)</option>
+              <option value="Fresher" ${preferences.experienceLevel === 'Fresher' ? 'selected' : ''}>Fresher</option>
+              <option value="0-1" ${preferences.experienceLevel === '0-1' ? 'selected' : ''}>0-1 years</option>
+              <option value="1-3" ${preferences.experienceLevel === '1-3' ? 'selected' : ''}>1-3 years</option>
+              <option value="3-5" ${preferences.experienceLevel === '3-5' ? 'selected' : ''}>3-5 years</option>
             </select>
           </div>
 
+          <div class="kn-field">
+            <label class="kn-label" for="skills">Skills</label>
+            <p class="kn-helper">
+              Enter your skills separated by commas (e.g., "Java, Python, React").
+            </p>
+            <input
+              id="skills"
+              class="kn-input"
+              type="text"
+              placeholder="e.g., Java, Python, React, Node.js"
+              value="${preferences.skills}"
+            />
+          </div>
+
+          <div class="kn-field">
+            <label class="kn-label" for="min-match-score">
+              Minimum match score threshold: <span id="min-match-score-value">${preferences.minMatchScore}</span>%
+            </label>
+            <p class="kn-helper">
+              Only show jobs with match score above this threshold.
+            </p>
+            <input
+              id="min-match-score"
+              class="kn-input kn-input--range"
+              type="range"
+              min="0"
+              max="100"
+              value="${preferences.minMatchScore}"
+            />
+          </div>
+
           <div class="kn-actions">
-            <button class="kn-button kn-button--primary">Save Preferences</button>
-            <button class="kn-button kn-button--secondary">Reset</button>
+            <button class="kn-button kn-button--primary" id="save-preferences">Save Preferences</button>
+            <button class="kn-button kn-button--secondary" id="reset-preferences">Reset</button>
           </div>
         </div>
       `;
+
+      // Event listeners for settings
+      const minMatchScoreInput = document.getElementById('min-match-score');
+      const minMatchScoreValue = document.getElementById('min-match-score-value');
+      if (minMatchScoreInput && minMatchScoreValue) {
+        minMatchScoreInput.addEventListener('input', (e) => {
+          minMatchScoreValue.textContent = e.target.value;
+        });
+      }
+
+      const saveBtn = document.getElementById('save-preferences');
+      if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+          const roleKeywords = document.getElementById('role-keywords').value.trim();
+          const preferredLocationsSelect = document.getElementById('preferred-locations');
+          const preferredLocations = Array.from(preferredLocationsSelect.selectedOptions).map(opt => opt.value);
+          const preferredModeCheckboxes = document.querySelectorAll('input[name="preferred-mode"]:checked');
+          const preferredMode = Array.from(preferredModeCheckboxes).map(cb => cb.value);
+          const experienceLevel = document.getElementById('experience-level').value;
+          const skills = document.getElementById('skills').value.trim();
+          const minMatchScore = parseInt(document.getElementById('min-match-score').value);
+
+          const newPreferences = {
+            roleKeywords,
+            preferredLocations,
+            preferredMode,
+            experienceLevel,
+            skills,
+            minMatchScore
+          };
+
+          savePreferences(newPreferences);
+          alert('Preferences saved successfully!');
+          renderDashboard();
+          window.location.hash = '#/dashboard';
+        });
+      }
+
+      const resetBtn = document.getElementById('reset-preferences');
+      if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+          if (confirm('Reset all preferences to defaults?')) {
+            localStorage.removeItem('jobTrackerPreferences');
+            renderSettings();
+          }
+        });
+      }
     }
   }
 
@@ -513,7 +793,12 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (contentEl) {
       const savedJobIds = getSavedJobs();
-      const savedJobs = JOBS_DATA.filter(job => savedJobIds.includes(job.id));
+      const preferences = getPreferences();
+      const savedJobs = JOBS_DATA.filter(job => savedJobIds.includes(job.id))
+        .map(job => ({
+          ...job,
+          matchScore: calculateMatchScore(job, preferences)
+        }));
 
       if (savedJobs.length === 0) {
         contentEl.innerHTML = `
@@ -531,7 +816,6 @@ document.addEventListener("DOMContentLoaded", function () {
           </div>
         `;
 
-        // Attach event listeners
         contentEl.querySelectorAll('[data-action]').forEach(btn => {
           btn.addEventListener('click', (e) => {
             const action = btn.getAttribute('data-action');
@@ -591,7 +875,6 @@ document.addEventListener("DOMContentLoaded", function () {
   function updateRoute() {
     const path = getPathFromHash();
 
-    // Update active nav link
     navLinks.forEach((link) => {
       const linkRoute = link.getAttribute("data-route-link");
       if (linkRoute === path) {
@@ -601,7 +884,6 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     });
 
-    // Render route-specific content
     if (path === "/" || path === "") {
       renderLandingPage();
     } else if (path === "/dashboard") {
@@ -615,7 +897,6 @@ document.addEventListener("DOMContentLoaded", function () {
     } else if (path === "/proof") {
       renderProof();
     } else {
-      // Default to landing page
       window.location.hash = "#/";
       renderLandingPage();
     }
@@ -630,6 +911,5 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  // Initialize on first load
   updateRoute();
 });
