@@ -832,6 +832,98 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // ============================================
+  // DIGEST MANAGEMENT
+  // ============================================
+
+  // Get today's date in YYYY-MM-DD format
+  function getTodayDateString() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // Get today's digest from localStorage
+  function getTodayDigest() {
+    const todayKey = `jobTrackerDigest_${getTodayDateString()}`;
+    const digest = localStorage.getItem(todayKey);
+    return digest ? JSON.parse(digest) : null;
+  }
+
+  // Save digest to localStorage
+  function saveDigest(jobs) {
+    const todayKey = `jobTrackerDigest_${getTodayDateString()}`;
+    localStorage.setItem(todayKey, JSON.stringify(jobs));
+  }
+
+  // Generate digest (top 10 jobs)
+  function generateDigest() {
+    const preferences = getPreferences();
+    
+    if (!preferences) {
+      return null;
+    }
+
+    // Get all jobs with match scores
+    let jobs = JOBS_DATA.map(job => ({
+      ...job,
+      matchScore: calculateMatchScore(job, preferences)
+    }));
+
+    // Filter jobs with match score >= minMatchScore
+    jobs = jobs.filter(job => job.matchScore >= preferences.minMatchScore);
+
+    if (jobs.length === 0) {
+      return [];
+    }
+
+    // Sort: matchScore descending, then postedDaysAgo ascending
+    jobs.sort((a, b) => {
+      if (b.matchScore !== a.matchScore) {
+        return b.matchScore - a.matchScore;
+      }
+      return a.postedDaysAgo - b.postedDaysAgo;
+    });
+
+    // Take top 10
+    return jobs.slice(0, 10);
+  }
+
+  // Format digest as plain text
+  function formatDigestAsText(digestJobs) {
+    const date = new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+
+    let text = `Top 10 Jobs For You — 9AM Digest\n`;
+    text += `${date}\n\n`;
+
+    digestJobs.forEach((job, index) => {
+      text += `${index + 1}. ${job.title} at ${job.company}\n`;
+      text += `   Location: ${job.location} | Experience: ${job.experience}\n`;
+      text += `   Match Score: ${job.matchScore}%\n`;
+      text += `   Apply: ${job.applyUrl}\n\n`;
+    });
+
+    text += `This digest was generated based on your preferences.\n`;
+    return text;
+  }
+
+  // Format digest date
+  function formatDigestDate() {
+    return new Date().toLocaleDateString('en-US', { 
+      weekday: 'long', 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    });
+  }
+
   function renderDigest() {
     if (headerEl) {
       headerEl.innerHTML = `
@@ -842,13 +934,182 @@ document.addEventListener("DOMContentLoaded", function () {
       `;
     }
     if (contentEl) {
+      const preferences = getPreferences();
+
+      // Check if preferences are set
+      if (!preferences) {
+        contentEl.innerHTML = `
+          <div class="kn-empty-state">
+            <p class="kn-text-md kn-empty-state__text">
+              Set preferences to generate a personalized digest.
+            </p>
+            <a href="#/settings" class="kn-button kn-button--primary" style="margin-top: var(--kn-space-2);">Go to Settings</a>
+          </div>
+        `;
+        return;
+      }
+
+      // Try to load today's digest
+      let digestJobs = getTodayDigest();
+
+      // If no digest exists, show generate button
+      if (!digestJobs) {
+        contentEl.innerHTML = `
+          <div class="kn-digest-generate">
+            <p class="kn-text-md">
+              Generate today's personalized digest based on your preferences.
+            </p>
+            <button class="kn-button kn-button--primary" id="generate-digest-btn">
+              Generate Today's 9AM Digest (Simulated)
+            </button>
+            <p class="kn-text-sm kn-digest-note">
+              Demo Mode: Daily 9AM trigger simulated manually.
+            </p>
+          </div>
+        `;
+
+        const generateBtn = document.getElementById('generate-digest-btn');
+        if (generateBtn) {
+          generateBtn.addEventListener('click', () => {
+            const jobs = generateDigest();
+            if (jobs && jobs.length > 0) {
+              saveDigest(jobs);
+              renderDigest(); // Re-render to show digest
+            } else {
+              // No matches found
+              contentEl.innerHTML = `
+                <div class="kn-empty-state">
+                  <p class="kn-text-md kn-empty-state__text">
+                    No matching roles today. Check again tomorrow.
+                  </p>
+                  <button class="kn-button kn-button--secondary" id="generate-digest-btn" style="margin-top: var(--kn-space-2);">
+                    Try Again
+                  </button>
+                </div>
+              `;
+              document.getElementById('generate-digest-btn').addEventListener('click', () => {
+                renderDigest();
+              });
+            }
+          });
+        }
+        return;
+      }
+
+      // If digest exists but empty
+      if (digestJobs.length === 0) {
+        contentEl.innerHTML = `
+          <div class="kn-empty-state">
+            <p class="kn-text-md kn-empty-state__text">
+              No matching roles today. Check again tomorrow.
+            </p>
+            <button class="kn-button kn-button--secondary" id="regenerate-digest-btn" style="margin-top: var(--kn-space-2);">
+              Regenerate Digest
+            </button>
+          </div>
+        `;
+
+        const regenerateBtn = document.getElementById('regenerate-digest-btn');
+        if (regenerateBtn) {
+          regenerateBtn.addEventListener('click', () => {
+            const jobs = generateDigest();
+            if (jobs && jobs.length > 0) {
+              saveDigest(jobs);
+              renderDigest();
+            } else {
+              renderDigest();
+            }
+          });
+        }
+        return;
+      }
+
+      // Render digest UI (email-style)
+      const digestDate = formatDigestDate();
+      const jobsHTML = digestJobs.map((job, index) => `
+        <div class="kn-digest-item">
+          <div class="kn-digest-item__number">${index + 1}</div>
+          <div class="kn-digest-item__content">
+            <h3 class="kn-digest-item__title">${job.title}</h3>
+            <p class="kn-digest-item__company">${job.company}</p>
+            <div class="kn-digest-item__meta">
+              <span class="kn-digest-item__meta-item">${job.location}</span>
+              <span class="kn-digest-item__meta-item">${job.experience}</span>
+              <span class="kn-match-score ${getMatchScoreClass(job.matchScore)}">${job.matchScore}% Match</span>
+            </div>
+            <a href="${job.applyUrl}" target="_blank" class="kn-button kn-button--primary kn-digest-item__apply">Apply</a>
+          </div>
+        </div>
+      `).join('');
+
+      const digestText = formatDigestAsText(digestJobs);
+      const emailSubject = encodeURIComponent("My 9AM Job Digest");
+      const emailBody = encodeURIComponent(digestText);
+      const mailtoLink = `mailto:?subject=${emailSubject}&body=${emailBody}`;
+
       contentEl.innerHTML = `
-        <div class="kn-empty-state">
-          <p class="kn-text-md kn-empty-state__text">
-            No digest available yet. Once you configure your preferences, you'll receive daily summaries of matched opportunities.
-          </p>
+        <div class="kn-digest-container">
+          <div class="kn-digest-card">
+            <div class="kn-digest-header">
+              <h2 class="kn-heading-md">Top 10 Jobs For You — 9AM Digest</h2>
+              <p class="kn-digest-date">${digestDate}</p>
+            </div>
+            <div class="kn-digest-body">
+              ${jobsHTML}
+            </div>
+            <div class="kn-digest-footer">
+              <p class="kn-text-sm">This digest was generated based on your preferences.</p>
+              <p class="kn-text-sm kn-digest-note">Demo Mode: Daily 9AM trigger simulated manually.</p>
+            </div>
+          </div>
+          <div class="kn-digest-actions">
+            <button class="kn-button kn-button--secondary" id="copy-digest-btn">Copy Digest to Clipboard</button>
+            <a href="${mailtoLink}" class="kn-button kn-button--secondary" id="email-digest-btn">Create Email Draft</a>
+            <button class="kn-button kn-button--tertiary" id="regenerate-digest-btn">Regenerate Digest</button>
+          </div>
         </div>
       `;
+
+      // Copy to clipboard handler
+      const copyBtn = document.getElementById('copy-digest-btn');
+      if (copyBtn) {
+        copyBtn.addEventListener('click', async () => {
+          try {
+            await navigator.clipboard.writeText(digestText);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => {
+              copyBtn.textContent = 'Copy Digest to Clipboard';
+            }, 2000);
+          } catch (err) {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = digestText;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            copyBtn.textContent = 'Copied!';
+            setTimeout(() => {
+              copyBtn.textContent = 'Copy Digest to Clipboard';
+            }, 2000);
+          }
+        });
+      }
+
+      // Regenerate handler
+      const regenerateBtn = document.getElementById('regenerate-digest-btn');
+      if (regenerateBtn) {
+        regenerateBtn.addEventListener('click', () => {
+          const jobs = generateDigest();
+          if (jobs && jobs.length > 0) {
+            saveDigest(jobs);
+            renderDigest();
+          } else {
+            saveDigest([]);
+            renderDigest();
+          }
+        });
+      }
     }
   }
 
