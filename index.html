@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>KodNest Premium Build System</title>
+    <title>Job Notification Tracker</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="./styles.css" />
   </head>
@@ -17,12 +17,12 @@
           </div>
 
           <div class="kn-topbar__progress">
-            <span class="kn-topbar__progress-label">Step</span>
-            <span class="kn-topbar__progress-value">Routes Shell</span>
+            <span class="kn-topbar__progress-label">Status</span>
+            <span class="kn-topbar__progress-value">Active</span>
           </div>
 
           <div class="kn-topbar__status">
-            <span class="kn-badge kn-badge--status kn-badge--status-idle">Navigation Only</span>
+            <span class="kn-badge kn-badge--status kn-badge--status-active">Tracking</span>
           </div>
         </div>
 
@@ -36,7 +36,7 @@
             ☰
           </button>
           <nav class="kn-nav" aria-label="Primary">
-            <a href="#/" class="kn-nav__link" data-route-link="/" data-route-default>Dashboard</a>
+            <a href="#/dashboard" class="kn-nav__link" data-route-link="/dashboard">Dashboard</a>
             <a href="#/saved" class="kn-nav__link" data-route-link="/saved">Saved</a>
             <a href="#/digest" class="kn-nav__link" data-route-link="/digest">Digest</a>
             <a href="#/settings" class="kn-nav__link" data-route-link="/settings">Settings</a>
@@ -47,7 +47,7 @@
 
       <!-- Context Header -->
       <section class="kn-context">
-        <div class="kn-context__content">
+        <div class="kn-context__content" data-route-header>
           <h1 class="kn-heading-xl" data-route-title>Dashboard</h1>
           <p class="kn-text-md" data-route-subtitle>
             This section will be built in the next step.
@@ -58,10 +58,8 @@
       <!-- Main Workspace -->
       <main class="kn-main">
         <section class="kn-primary">
-          <div class="kn-card kn-card--primary">
-            <header class="kn-card__header">
-              <h2 class="kn-heading-md">Job Notification Tracker</h2>
-            </header>
+          <div class="kn-card kn-card--primary" data-route-content>
+            <!-- Route-specific content will be rendered here -->
           </div>
         </section>
       </main>
